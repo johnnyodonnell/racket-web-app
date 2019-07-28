@@ -2,7 +2,7 @@
 
 (define handler
   (lambda (event context)
-    event))
+    (hash-set event 'message "Hello from Racket on Lambda!")))
 
 (provide handler)
 

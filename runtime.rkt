@@ -1,7 +1,7 @@
 #lang racket
 
 (require json
-         simple-http)
+         net/http-client)
 
 (define handler (getenv "_HANDLER"))
 (define task-root (getenv "LAMBDA_TASK_ROOT"))
@@ -30,6 +30,20 @@
 (define host (get-host runtime-url))
 (define port (get-port runtime-url))
 
+(define make-pairs
+  (lambda (str)
+    (let* ([key (car (regexp-match #rx"[A-Za-z-]*:" str))]
+           [val (string-replace str key "")])
+      (list (string->symbol
+              (string-titlecase (string-trim (string-replace key ":" ""))))
+            (string-trim val)))))
+
+(define map-headers
+  (lambda (headers)
+    (make-immutable-hasheq
+      (map (lambda (bytes) (make-pairs (bytes->string/utf-8 bytes)))
+           headers))))
+
 (define main-function
   (dynamic-require
     (string->path
@@ -38,9 +52,16 @@
 
 (define invocation-response
   (lambda (aws-request-id data)
-    (put (update-host (update-port json-requester port) host)
-         (string-append "/runtime/invocation/" aws-request-id "/response")
-         #:data (jsexpr->string data))))
+    (let-values ([(status headers response-port)
+                  (http-sendrecv
+                    host
+                    (string-append "/2018-06-01/runtime/invocation/"
+                                   aws-request-id
+                                   "/response")
+                    #:method #"POST"
+                    #:port port
+                    #:data (jsexpr->string data))])
+                (displayln status))))
 
 (define invocation-error
   (lambda (err)
@@ -48,16 +69,14 @@
 
 (define next-invocation
   (lambda ()
-    (let ([res (get (update-host (update-port json-requester port) host)
-                    "/runtime/invocation/next")])
-      (let ([result (main-function
-                      (json-response-body res)
-                      (make-hasheq))])
-        (invocation-response
-          (car
-            (hash-ref (json-response-headers res)
-                      'Lambda-Runtime-Aws-Request-Id))
-          result)))))
+    (let-values ([(status headers response-port)
+                  (http-sendrecv host "/2018-06-01/runtime/invocation/next"
+                                 #:port port)])
+                (invocation-response
+                  (car
+                    (hash-ref (map-headers headers)
+                              'Lambda-Runtime-Aws-Request-Id))
+                  (main-function (read-json response-port) (make-hasheq))))))
 
 (define main
   (lambda ()

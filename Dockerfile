@@ -9,7 +9,6 @@ RUN wget https://mirror.racket-lang.org/installers/7.3/racket-7.3-x86_64-linux.s
 RUN chmod u+x ./racket-7.3-x86_64-linux.sh
 RUN printf 'yes' | ./racket-7.3-x86_64-linux.sh
 
-RUN printf 'Y\nY' | raco pkg install simple-http
 ADD runtime.rkt .
 RUN raco exe --orig-exe ++lang racket runtime.rkt
 

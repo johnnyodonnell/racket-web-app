@@ -40,11 +40,11 @@
 
 (define-values (dispatch url)
                (dispatch-rules
-                 [("runtime" "invocation" "next") next]
-                 [("runtime" "invocation" (string-arg) "response")
+                 [("2018-06-01" "runtime" "invocation" "next") next]
+                 [("2018-06-01" "runtime" "invocation" (string-arg) "response")
                   #:method "post"
                   aws-response]
-                 [("runtime" "invocation" (string-arg) "error")
+                 [("2018-06-01" "runtime" "invocation" (string-arg) "error")
                   #:method "post"
                   aws-error]
                  [else not-found]))
